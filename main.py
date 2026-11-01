@@ -1,14 +1,16 @@
 import random
 import pygame
 import sys
+import math
 
 class Cell:
-    def __init__(self, x, y, energy, age=0, is_alive = True):
+    def __init__(self, x, y, energy, age=0, is_alive = True, vision = 6):
         if not isinstance(energy, int) or not isinstance(age, int) or not isinstance(is_alive, bool) or not isinstance(x, int) or not isinstance(y, int):
             raise ValueError("Invalid inputs for the Cell attributes")
         self.x = x
         self.y = y
         self.energy = energy
+        self.vision = vision
         self.age = age
         self.is_alive = is_alive
         self.genome = Genome()
@@ -25,12 +27,11 @@ class Cell:
             self.move(dx, dy)   
     def update(self):
         if self.is_alive:
-            self.random_movement()
             self.age += 1
             self.energy -= 1
             if self.energy <= 0:
                 self.is_alive = False
-            elif self.age > 100:
+            elif self.age > 1000:
                 self.is_alive = False
             
 
@@ -55,6 +56,32 @@ class Cell:
             self.genome = self.genome.inheritance()
             kid = Cell(max(0, min(49, self.x +random.choice([-1, 0, 1]))), max(0, min(49, self.y + random.choice([-1, 0, 1]))), self.energy)
             return kid
+    def food_seeking(self, food):
+        if self.is_alive:
+            closest_food = None
+            closest_distance = float('inf')
+            for fx, fy in food:
+                distance = math.hypot(fx - self.x, fy - self.y)
+                if distance < closest_distance and distance <= self.vision:
+                    closest_distance = distance
+                    closest_food = (fx, fy)
+            if closest_food:
+                fx, fy = closest_food
+                if fx > self.x:
+                    self.x += 1
+                elif fx < self.x:
+                    self.x -= 1
+
+                if fy > self.y:
+                    self.y +=1
+                elif fy < self.y:
+                    self.y -= 1
+            else:
+                self.random_movement()
+
+            self.x = max(0, min(49, self.x))
+            self.y = max(0, min(49, self.y))
+                
     def __str__(self):
         return f"Cell({self.x},{self.y}, {self.energy}, {self.age}, {self.is_alive})"
 
@@ -77,13 +104,25 @@ class World:
     def update_all(self):
         for cell in self.cells:
             cell.update()
-
+            cell.food_seeking(self.food)
         self.cells = [cell for cell in self.cells if cell.is_alive]
 
     def spawn_food(self):
         fx = random.randint(0, 49)
         fy = random.randint(0, 49)
         self.food.append((fx, fy))
+
+    def handle_eating(self):
+        for i in range(len(self.food) - 1, -1, -1):
+            fx, fy = self.food[i]
+            eaten = False
+            for cell in self.cells:
+                if cell.x == fx and cell.y == fy:
+                    cell.energy += 50
+                    eaten = True
+                    break
+            if eaten:
+                self.food.pop(i)
 
 class Genome:
     def __init__(self, speed=1):
@@ -107,7 +146,7 @@ def food_drawing(screen, food, cell_size):
 
 
 def run_game():
-    world = World(50,50)
+    world = World(50, 50)
     pygame.init()
     CELL_SIZE = 16
     WINDOW_WIDTH = world.width * CELL_SIZE
@@ -121,7 +160,7 @@ def run_game():
     clock = pygame.time.Clock()
     FPS = 10
 
-    world.random_population(50)
+    world.random_population(100)
     running = True
     while running:
         for event in pygame.event.get():
@@ -129,9 +168,10 @@ def run_game():
                 running = False
         tick_count += 1
         world.update_all()
-        if tick_count % 10 == 0:
+        world.handle_eating()
+        if tick_count % 2 == 0:
             world.spawn_food()
-        screen.fill((30, 30, 30)) #dark background 
+        screen.fill((0, 0, 0)) #dark background 
         food_drawing(screen, world.food, CELL_SIZE)
         for cell in world.cells:
             cell.draw(screen, CELL_SIZE)
