@@ -12,24 +12,27 @@ WINDOW_HEIGHT = GRID_HEIGHT * CELL_SIZE
 FPS = 10
 
 class Genome:
-    def __init__(self, speed=1):
+    def __init__(self, speed=1, vision=6):
         self.speed = speed
+        self.vision = vision
 
     def inheritance(self):
         child_speed = self.speed
         child_speed = child_speed + random.choice([-1, 0, 1])
         child_speed = max(1, child_speed)
-        return Genome(speed=child_speed)
+        child_vision = self.vision
+        child_vision = child_vision + random.choice([-1, 0, 1])
+        child_vision = max(1, child_vision)
+        return Genome(speed=child_speed, vision=child_vision)
 
 
 class Cell:
-    def __init__(self, x, y, energy, age=0, is_alive=True, vision=6):
+    def __init__(self, x, y, energy, age=0, is_alive=True):
         if not isinstance(energy, int) or not isinstance(age, int) or not isinstance(is_alive, bool) or not isinstance(x, int) or not isinstance(y, int):
             raise ValueError("Invalid inputs for the Cell attributes")
         self.x = x
         self.y = y
         self.energy = energy
-        self.vision = vision
         self.age = age
         self.is_alive = is_alive
         self.genome = Genome()
@@ -61,7 +64,7 @@ class Cell:
             min_distance = float('inf')
             for fx, fy in food_list:
                 distance = math.hypot(fx - self.x, fy - self.y)
-                if distance < min_distance and distance <= self.vision:
+                if distance < min_distance and distance <= self.genome.vision:
                     min_distance = distance
                     closest_food = (fx, fy)
             
@@ -83,7 +86,7 @@ class Cell:
                 self.random_movement()
 
     def change_color(self):
-        max_energy = 100
+        max_energy = 150
         ratio = max(0, min(1, self.energy / max_energy))
         r = 0
         g = int(ratio * 255)
@@ -100,12 +103,13 @@ class Cell:
     def reproduce(self):
         if self.is_alive and self.energy >= 150:
             self.energy //= 2
-            self.genome = self.genome.inheritance()
+            
             kid = Cell(
                 max(0, min(GRID_WIDTH - 1, self.x + random.choice([-1, 0, 1]))),
                 max(0, min(GRID_HEIGHT - 1, self.y + random.choice([-1, 0, 1]))),
                 self.energy
             )
+            kid.genome = self.genome.inheritance()
             return kid
         return None
 
@@ -131,9 +135,18 @@ class World:
             self.cells.append(cell)
 
     def update_all(self):
+        newborns = []
         for cell in self.cells:
             cell.update()
             cell.food_seeking(self.food)
+            kid = cell.reproduce()
+            if kid:
+                newborns.append(kid)
+        self.cells = [c for c in self.cells if c.is_alive] + newborns
+        for cell in self.cells:
+            cell.update()
+            cell.food_seeking(self.food)
+            cell.reproduce()
         self.cells = [cell for cell in self.cells if cell.is_alive]
 
     def spawn_food(self):
