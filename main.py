@@ -148,7 +148,7 @@ class World:
         for _ in range(num_cells):
             x = random.randint(0, self.width - 1)
             y = random.randint(0, self.height - 1)
-            cell = Cell(x, y, 5000)
+            cell = Cell(x, y, 100)
             self.cells.append(cell)
 
 
@@ -157,11 +157,11 @@ class World:
         for cell in self.cells:
             cell.update()
             cell.act(self.food, self.trail)
-            #kid = cell.reproduce()
-            #if kid:
-                #newborns.append(kid)
-        #self.cells = [c for c in self.cells if c.is_alive] + newborns
-    
+            kid = cell.reproduce()
+            if kid:
+                newborns.append(kid)
+        self.cells = [c for c in self.cells if c.is_alive] + newborns
+
 
     def spawn_food(self):
         fx = random.randint(0, self.width - 1)
@@ -187,7 +187,7 @@ def food_drawing(screen, food, cell_size):
     for fx, fy in food:
         pixel_x = fx * cell_size + offset
         pixel_y = fy * cell_size + offset
-        pygame.draw.rect(screen, (188, 191, 138), (pixel_x, pixel_y, food_size, food_size))
+        pygame.draw.rect(screen, (242, 172, 232), (pixel_x, pixel_y, food_size, food_size))
 
 def trail_drawing(screen, trail):
         #brightness clipped to 0-1 range
