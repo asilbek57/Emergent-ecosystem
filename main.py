@@ -2,8 +2,8 @@ import random
 import pygame
 import sys
 import math
+import numpy as np
 
-#constants
 GRID_WIDTH = 120
 GRID_HEIGHT = 67
 CELL_SIZE = 16
@@ -55,7 +55,7 @@ class Cell:
             self.energy -= 1
             if self.energy <= 0:
                 self.is_alive = False
-            elif self.age > 1000000:
+            elif self.age > 1000:
                 self.is_alive = False
 
     def food_seeking(self, food_list):
@@ -84,13 +84,13 @@ class Cell:
                 self.move(dx, dy)
             else:
                 self.random_movement()
-
+#56, 207, 194
     def change_color(self):
         max_energy = 150
         ratio = max(0, min(1, self.energy / max_energy))
-        r = 0
-        g = int(ratio * 255)
-        b = 0
+        r = int(ratio * 56)
+        g = int(ratio * 207)
+        b = int(ratio * 194)
         return (r, g, b)
 
     def draw(self, screen, cell_size):
@@ -123,9 +123,17 @@ class World:
         self.height = height
         self.cells = []
         self.food = []
+###dis
+        self.trail = np.zeros((width, height), dtype=np.float32)
+####dis
+    def update_trail(self, decay=0.98, spread=0.2):
+        neighbors = (np.roll(self.trail, 1, 0) + np.roll(self.trail, -1, 0) +
+                    np.roll(self.trail, 1, 1) + np.roll(self.trail, -1, 1)) / 4
+        self.trail = (self.trail * (1 - spread) + neighbors * spread) * decay
 
     def add_cell(self, cell):
         self.cells.append(cell)
+
 
     def random_population(self, num_cells):
         for _ in range(num_cells):
@@ -133,6 +141,7 @@ class World:
             y = random.randint(0, self.height - 1)
             cell = Cell(x, y, 100)
             self.cells.append(cell)
+
 
     def update_all(self):
         newborns = []
@@ -143,11 +152,7 @@ class World:
             if kid:
                 newborns.append(kid)
         self.cells = [c for c in self.cells if c.is_alive] + newborns
-        for cell in self.cells:
-            cell.update()
-            cell.food_seeking(self.food)
-            cell.reproduce()
-        self.cells = [cell for cell in self.cells if cell.is_alive]
+    
 
     def spawn_food(self):
         fx = random.randint(0, self.width - 1)
@@ -160,12 +165,12 @@ class World:
             eaten = False
             for cell in self.cells:
                 if cell.x == fx and cell.y == fy:
+                    self.trail[cell.x, cell.y] += 10
                     cell.energy += 50
                     eaten = True
                     break
             if eaten:
                 self.food.pop(i)
-
 
 def food_drawing(screen, food, cell_size):
     food_size = 8 
@@ -175,6 +180,16 @@ def food_drawing(screen, food, cell_size):
         pixel_y = fy * cell_size + offset
         pygame.draw.rect(screen, (188, 191, 138), (pixel_x, pixel_y, food_size, food_size))
 
+def trail_drawing(screen, trail):
+        v = np.clip(trail / 5, 0, 1)
+        v = np.sqrt(v)        
+        rgb = np.zeros((trail.shape[0], trail.shape[1], 3), dtype=np.uint8)
+        rgb[..., 0] = (v * 120).astype(np.uint8)
+        rgb[..., 1] = (v * 180).astype(np.uint8)
+        rgb[..., 2] = (v * 255).astype(np.uint8)
+        surf = pygame.surfarray.make_surface(rgb)
+        surf = pygame.transform.smoothscale(surf, (WINDOW_WIDTH, WINDOW_HEIGHT))
+        screen.blit(surf, (0, 0))
 
 def run_game():
     pygame.init()
@@ -201,7 +216,11 @@ def run_game():
         if tick_count % 2 == 0:
             world.spawn_food()
 
-        screen.fill((0, 0, 0)) # dark background
+        screen.fill((0, 0, 0)) #background
+    
+        trail_drawing(screen, world.trail)
+        world.update_trail()
+
         food_drawing(screen, world.food, CELL_SIZE)
         
         for cell in world.cells:
