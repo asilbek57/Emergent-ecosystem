@@ -48,3 +48,5 @@ Roadmap
 Inspiration
 Sebastian Lague, Coding Adventure: Ant and Slime Simulations: pheromone trails and agent-based pattern formation
 Brainxyz, Create a Life from a Simple Rule: emergent behavior from simple interaction rules
+
+<video src="https://raw.githubusercontent.com/asilbek57/Emergent-ecosystem/main/simulation.mp4" controls autoplay loop muted playsinline width="100%"></video>
